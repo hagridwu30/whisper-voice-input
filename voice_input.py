@@ -209,14 +209,21 @@ def _transcribe_and_inject():
 
 
 def _inject_text(text):
-    """把文字存到剪貼簿，再用 pynput 模擬 Cmd+V 貼上"""
+    """把文字存到剪貼簿，Cmd+V 貼上，完成後還原原本剪貼簿內容"""
+    # 先備份原本剪貼簿
+    prev = subprocess.run(["pbpaste"], capture_output=True).stdout
+
     subprocess.run(["pbcopy"], input=text.encode("utf-8"), check=True)
     time.sleep(0.1)
 
     kb = keyboard.Controller()
     with kb.pressed(keyboard.Key.cmd):
         kb.tap("v")
-    time.sleep(0.05)
+    time.sleep(0.15)
+
+    # 還原原本剪貼簿
+    if prev:
+        subprocess.run(["pbcopy"], input=prev, check=True)
 
 
 # ── 快捷鍵監聽 ────────────────────────────────────────────────────────────────

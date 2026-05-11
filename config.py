@@ -17,7 +17,7 @@ LANGUAGE = "zh"  # 主要語言設中文，Whisper 會自動處理中英夾雜
 # 格式：用逗號分隔，可以加入常用詞彙
 INITIAL_PROMPT = (
     "以下是繁體中文語音，包含中英夾雜的專業術語。"
-    "常見術語：zone2, zone 2, pace, DRAM, dram, "
+    "常見術語：zone2, zone 2, pace, DRAM, dram, call, put, "
     "API, component, refactor, PR, commit, deploy, "
     "backend, frontend, database, server, client。"
     "請使用繁體中文輸出，不要使用簡體中文。"
