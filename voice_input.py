@@ -187,6 +187,12 @@ def _transcribe_and_inject():
             hide_status()
             return
 
+        # 過濾 Whisper 沒收到聲音時回傳 prompt 內容的情況
+        JUNK_PHRASES = ["請使用繁體中文", "不要使用簡體中文", "常見術語", "以下是繁體中文"]
+        if any(phrase in text for phrase in JUNK_PHRASES):
+            hide_status()
+            return
+
         # 簡體 → 繁體轉換
         text = converter.convert(text)
 
