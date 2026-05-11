@@ -9,11 +9,18 @@ PROJ="$HOME/Projects/whisper-voice-input"
 # 1. 建立專案資料夾
 mkdir -p "$HOME/Projects"
 if [ ! -d "$PROJ" ]; then
-    echo "📥 下載專案..."
-    git clone https://github.com/hagridwu30/whisper-voice-input.git "$PROJ"
+    if command -v git &>/dev/null; then
+        echo "📥 下載專案..."
+        git clone https://github.com/hagridwu30/whisper-voice-input.git "$PROJ"
+    else
+        echo "❌ 找不到 git，請先把專案資料夾放到 ~/Projects/whisper-voice-input/ 再執行此腳本"
+        exit 1
+    fi
 else
-    echo "📥 更新專案..."
-    git -C "$PROJ" pull
+    echo "✅ 已找到專案資料夾"
+    if command -v git &>/dev/null; then
+        git -C "$PROJ" pull 2>/dev/null || true
+    fi
 fi
 
 cd "$PROJ"
