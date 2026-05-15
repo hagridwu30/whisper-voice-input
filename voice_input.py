@@ -26,10 +26,12 @@ from AppKit import (
     NSApplication, NSWindow, NSView, NSTextField, NSColor, NSFont,
     NSMakeRect, NSBorderlessWindowMask, NSFloatingWindowLevel,
     NSBackingStoreBuffered, NSTimer, NSRunLoop, NSDefaultRunLoopMode,
+    NSStatusBar, NSMenu, NSMenuItem, NSImage, NSVariableStatusItemLength,
 )
 from Foundation import NSObject, NSThread
 
 # ── 全域狀態 ─────────────────────────────────────────────────────────────────
+status_item = None  # 選單列圖示
 is_recording = False
 audio_frames = []
 pa = None
@@ -260,7 +262,22 @@ def main():
 
     # 建立 NSApplication (必須在主執行緒)
     app = NSApplication.sharedApplication()
+    app.setActivationPolicy_(1)
     create_status_window()
+
+    # ── 選單列圖示 + Quit ──
+    global status_item
+    sb = NSStatusBar.systemStatusBar()
+    status_item = sb.statusItemWithLength_(NSVariableStatusItemLength)
+    status_item.button().setTitle_("🎙")
+    status_item.button().setToolTip_("VoiceInput — 按住 Right Option 錄音")
+
+    menu = NSMenu.alloc().init()
+    quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
+        "Quit VoiceInput", "terminate:", "q"
+    )
+    menu.addItem_(quit_item)
+    status_item.setMenu_(menu)
 
     # 背景執行鍵盤監聽
     listener = keyboard.Listener(on_press=_on_press, on_release=_on_release)
