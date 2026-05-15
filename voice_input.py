@@ -265,16 +265,15 @@ def main():
     app.setActivationPolicy_(1)
     create_status_window()
 
-    # ── 選單列圖示 + Quit ──
+    # ── 選單列 Quit ──
     global status_item
     sb = NSStatusBar.systemStatusBar()
     status_item = sb.statusItemWithLength_(NSVariableStatusItemLength)
     status_item.button().setTitle_("🎙")
-    status_item.button().setToolTip_("VoiceInput — 按住 Right Option 錄音")
 
     menu = NSMenu.alloc().init()
     quit_item = NSMenuItem.alloc().initWithTitle_action_keyEquivalent_(
-        "Quit VoiceInput", "terminate:", "q"
+        "Quit VoiceInput", "terminate:", ""
     )
     menu.addItem_(quit_item)
     status_item.setMenu_(menu)
