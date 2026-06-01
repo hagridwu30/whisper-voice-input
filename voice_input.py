@@ -119,6 +119,17 @@ def _run_on_main(fn):
 
 
 # ── 錄音 ──────────────────────────────────────────────────────────────────────
+def find_input_device(pa_instance):
+    """找到第一個可用的輸入裝置，回傳裝置 index，找不到回傳 None"""
+    count = pa_instance.get_device_count()
+    for i in range(count):
+        info = pa_instance.get_device_info_by_index(i)
+        if info.get("maxInputChannels", 0) > 0:
+            log.debug(f"找到輸入裝置 [{i}]: {info['name']}")
+            return i
+    return None
+
+
 def start_recording():
     global is_recording, audio_frames, pa, stream
     if is_recording:
@@ -130,18 +141,24 @@ def start_recording():
 
     try:
         pa = pyaudio.PyAudio()
+        device_index = find_input_device(pa)
+        if device_index is None:
+            raise Exception("找不到任何麥克風，請確認麥克風已連接")
+
+        log.info(f"使用輸入裝置 index={device_index}")
         stream = pa.open(
             format=pyaudio.paInt16,
             channels=config.CHANNELS,
             rate=config.SAMPLE_RATE,
             input=True,
+            input_device_index=device_index,
             frames_per_buffer=config.CHUNK_SIZE,
         )
         show_status("🎙 錄音中...")
     except Exception as e:
         log.error(f"開啟麥克風失敗: {e}")
         is_recording = False
-        show_status(f"❌ 麥克風錯誤")
+        show_status("❌ 請確認麥克風已連接")
         time.sleep(2)
         hide_status()
         return
