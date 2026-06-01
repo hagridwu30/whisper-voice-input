@@ -22,13 +22,17 @@ import config
 # ── Log 設定 ──────────────────────────────────────────────────────────────────
 LOG_PATH = os.path.expanduser("~/Projects/whisper-voice-input/voice_input.log")
 logging.basicConfig(
-    level=logging.DEBUG,
+    level=logging.INFO,
     format="%(asctime)s [%(levelname)s] %(message)s",
     handlers=[
         logging.FileHandler(LOG_PATH, encoding="utf-8"),
         logging.StreamHandler(sys.stdout),
     ],
 )
+# 把 httpcore/httpx 的 debug log 關掉
+logging.getLogger("httpcore").setLevel(logging.WARNING)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("groq").setLevel(logging.WARNING)
 log = logging.getLogger(__name__)
 
 # ── macOS 原生 UI ──────────────────────────────────────────────────────────────
@@ -237,13 +241,28 @@ def _transcribe_and_inject():
         buf.name = "audio.wav"
 
         log.info("送出 Groq Whisper 辨識...")
-        result = client.audio.transcriptions.create(
-            model=config.WHISPER_MODEL,
-            file=buf,
-            language=config.LANGUAGE,
-            prompt=config.INITIAL_PROMPT,
-            response_format="text",
-        )
+        result = None
+        for attempt in range(2):  # 最多重試一次
+            try:
+                buf.seek(0)
+                result = client.audio.transcriptions.create(
+                    model=config.WHISPER_MODEL,
+                    file=buf,
+                    language=config.LANGUAGE,
+                    prompt=config.INITIAL_PROMPT,
+                    response_format="text",
+                )
+                break
+            except Exception as e:
+                log.warning(f"Groq 請求失敗 (第{attempt+1}次): {e}")
+                if attempt == 0:
+                    log.info("1秒後重試...")
+                    time.sleep(1)
+                else:
+                    raise
+
+        if result is None:
+            raise Exception("Groq API 無回應")
 
         text = result.strip() if isinstance(result, str) else result.text.strip()
         log.info(f"Whisper 回傳: {repr(text)}")
