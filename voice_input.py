@@ -50,7 +50,7 @@ stream = None
 status_window = None
 status_label = None
 converter = opencc.OpenCC("s2twp")
-client = Groq(api_key=config.GROQ_API_KEY)
+client = Groq(api_key=config.GROQ_API_KEY, timeout=10.0)
 
 
 # ── 浮動視窗 ──────────────────────────────────────────────────────────────────
@@ -120,13 +120,34 @@ def _run_on_main(fn):
 
 # ── 錄音 ──────────────────────────────────────────────────────────────────────
 def find_input_device(pa_instance):
-    """找到第一個可用的輸入裝置，回傳裝置 index，找不到回傳 None"""
+    """優先選 USB 麥克風，找不到則用預設輸入裝置"""
     count = pa_instance.get_device_count()
+    devices = []
     for i in range(count):
         info = pa_instance.get_device_info_by_index(i)
         if info.get("maxInputChannels", 0) > 0:
-            log.debug(f"找到輸入裝置 [{i}]: {info['name']}")
+            devices.append((i, info["name"]))
+            log.debug(f"輸入裝置 [{i}]: {info['name']}")
+
+    # 優先選 USB 麥克風
+    for i, name in devices:
+        if any(kw in name.lower() for kw in ["usb", "yeti", "blue", "rode", "focusrite", "scarlett"]):
+            log.info(f"選用 USB 麥克風 [{i}]: {name}")
             return i
+
+    # 其次用系統預設輸入
+    try:
+        default = pa_instance.get_default_input_device_info()
+        log.info(f"使用預設輸入裝置 [{default['index']}]: {default['name']}")
+        return default["index"]
+    except Exception:
+        pass
+
+    # 最後才用第一個找到的
+    if devices:
+        log.info(f"使用第一個輸入裝置 [{devices[0][0]}]: {devices[0][1]}")
+        return devices[0][0]
+
     return None
 
 
