@@ -190,17 +190,19 @@ def start_recording():
 
     def record_loop():
         global is_recording
+        mic_error = False
         while is_recording:
             try:
                 data = stream.read(config.CHUNK_SIZE, exception_on_overflow=False)
                 audio_frames.append(data)
             except Exception as e:
                 log.error(f"錄音中斷: {e}")
-                is_recording = False  # 強制停止，觸發後續辨識流程
+                is_recording = False
+                mic_error = True
                 break
         log.info(f"錄音結束，共 {len(audio_frames)} frames")
-        # 若因麥克風斷線中斷，自動送出已錄到的內容
-        if audio_frames and not is_recording:
+        # 只有麥克風異常中斷時才從這裡觸發辨識，正常放開由 stop_recording_and_transcribe 處理
+        if mic_error and audio_frames:
             threading.Thread(target=_safe_transcribe, daemon=True).start()
 
     threading.Thread(target=record_loop, daemon=True).start()
@@ -276,10 +278,10 @@ def _transcribe_and_inject():
             except Exception as e:
                 log.warning(f"Groq 請求失敗 (第{attempt+1}次): {e}")
                 if attempt == 0:
-                    log.info("1秒後重試...")
+                    show_status("🔄 重試中...")
                     time.sleep(1)
                 else:
-                    raise
+                    raise Exception(f"Groq API 無回應: {e}")
 
         if result is None:
             raise Exception("Groq API 無回應")
