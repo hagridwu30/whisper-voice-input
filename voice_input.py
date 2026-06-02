@@ -189,16 +189,36 @@ def start_recording():
         return
 
     def record_loop():
+        global is_recording
         while is_recording:
             try:
                 data = stream.read(config.CHUNK_SIZE, exception_on_overflow=False)
                 audio_frames.append(data)
             except Exception as e:
                 log.error(f"錄音中斷: {e}")
+                is_recording = False  # 強制停止，觸發後續辨識流程
                 break
-        log.debug(f"錄音結束，共 {len(audio_frames)} frames")
+        log.info(f"錄音結束，共 {len(audio_frames)} frames")
+        # 若因麥克風斷線中斷，自動送出已錄到的內容
+        if audio_frames and not is_recording:
+            threading.Thread(target=_safe_transcribe, daemon=True).start()
 
     threading.Thread(target=record_loop, daemon=True).start()
+
+
+def _safe_transcribe():
+    """麥克風中斷時安全關閉裝置並送出辨識"""
+    global pa, stream
+    try:
+        if stream:
+            stream.stop_stream()
+            stream.close()
+        if pa:
+            pa.terminate()
+    except Exception:
+        pass
+    show_status("⏳ 辨識中...")
+    _transcribe_and_inject()
 
 
 def stop_recording_and_transcribe():
