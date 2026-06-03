@@ -164,24 +164,37 @@ def start_recording():
     is_recording = True
     audio_frames = []
 
-    try:
-        pa = pyaudio.PyAudio()
-        device_index = find_input_device(pa)
-        if device_index is None:
-            raise Exception("找不到任何麥克風，請確認麥克風已連接")
+    # 麥克風找不到時最多等 5 秒重試，不崩潰
+    opened = False
+    for attempt in range(5):
+        try:
+            pa = pyaudio.PyAudio()
+            device_index = find_input_device(pa)
+            if device_index is None:
+                raise Exception("找不到麥克風")
+            log.info(f"使用輸入裝置 index={device_index}")
+            stream = pa.open(
+                format=pyaudio.paInt16,
+                channels=config.CHANNELS,
+                rate=config.SAMPLE_RATE,
+                input=True,
+                input_device_index=device_index,
+                frames_per_buffer=config.CHUNK_SIZE,
+            )
+            opened = True
+            break
+        except Exception as e:
+            log.warning(f"開啟麥克風失敗 (第{attempt+1}次): {e}")
+            try:
+                pa.terminate()
+            except Exception:
+                pass
+            if attempt < 4:
+                show_status("🎙 等待麥克風...")
+                time.sleep(1)
 
-        log.info(f"使用輸入裝置 index={device_index}")
-        stream = pa.open(
-            format=pyaudio.paInt16,
-            channels=config.CHANNELS,
-            rate=config.SAMPLE_RATE,
-            input=True,
-            input_device_index=device_index,
-            frames_per_buffer=config.CHUNK_SIZE,
-        )
-        show_status("🎙 錄音中...")
-    except Exception as e:
-        log.error(f"開啟麥克風失敗: {e}")
+    if not opened:
+        log.error("無法開啟麥克風，放棄錄音")
         is_recording = False
         show_status("❌ 請確認麥克風已連接")
         time.sleep(2)
