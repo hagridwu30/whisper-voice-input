@@ -370,6 +370,22 @@ def _is_hotkey(key):
 
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 def main():
+    # ── 確保只有一個 instance 在跑 ──
+    my_pid = os.getpid()
+    result = subprocess.run(
+        ["pgrep", "-f", "voice_input.py"],
+        capture_output=True, text=True
+    )
+    pids = [int(p) for p in result.stdout.strip().split() if p and int(p) != my_pid]
+    if pids:
+        log.info(f"偵測到舊 instance {pids}，強制結束")
+        for pid in pids:
+            try:
+                os.kill(pid, 9)
+            except Exception:
+                pass
+        time.sleep(1)
+
     if not config.GROQ_API_KEY:
         log.error("找不到 GROQ_API_KEY")
         print("❌ 找不到 GROQ_API_KEY，請執行：")
