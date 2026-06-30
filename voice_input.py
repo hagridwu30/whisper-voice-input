@@ -316,6 +316,11 @@ def _transcribe_and_inject():
         text = converter.convert(text)
         log.info(f"繁體轉換後: {repr(text)}")
 
+        # AI 潤稿：補標點、修術語（不改用詞）
+        if config.ENABLE_POLISH:
+            show_status("✨ 潤稿中...")
+            text = _polish_text(text)
+
         show_status(f"✅ {text[:20]}{'...' if len(text) > 20 else ''}")
         _inject_text(text)
         time.sleep(0.8)
@@ -326,6 +331,41 @@ def _transcribe_and_inject():
         show_status(f"❌ {str(e)[:30]}")
         time.sleep(2)
         hide_status()
+
+
+def _polish_text(text):
+    """用 LLM 補正確標點、修中英術語，不改用詞、不刪字。失敗則回傳原文。"""
+    system_prompt = (
+        "你是繁體中文語音稿的標點修正器。"
+        "請直接輸出修正後的文字本身，絕對不要輸出任何規則、說明或解釋。\n"
+        "修正規則：\n"
+        "1. 為文字補上正確標點（，。？！、：「」）。\n"
+        f"2. 若文中英文是這些術語的拼寫錯誤，改成正確拼寫：{', '.join(config.TERMS)}。\n"
+        "3. 使用台灣繁體中文用字。\n"
+        "限制：不可改寫中文、不可增刪字詞、不可改變語意、"
+        "不可把英文猜測替換成意思不同的詞，只能加標點與修明顯的英文拼寫錯誤。"
+    )
+    try:
+        resp = client.chat.completions.create(
+            model=config.POLISH_MODEL,
+            messages=[
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": text},
+            ],
+            temperature=0,
+            max_tokens=1024,
+        )
+        polished = resp.choices[0].message.content.strip()
+        # 安全檢查：潤稿後字數變化太大就退回原文（避免 LLM 亂改）
+        if polished and abs(len(polished) - len(text)) <= max(10, len(text) * 0.5):
+            polished = converter.convert(polished)  # 確保仍是繁體
+            log.info(f"潤稿後: {repr(polished)}")
+            return polished
+        log.warning(f"潤稿結果異常，退回原文 (原:{len(text)} 潤:{len(polished)})")
+        return text
+    except Exception as e:
+        log.warning(f"潤稿失敗，使用原文: {e}")
+        return text
 
 
 def _inject_text(text):

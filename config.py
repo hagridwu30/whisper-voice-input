@@ -13,19 +13,31 @@ CHUNK_SIZE = 1024
 WHISPER_MODEL = "whisper-large-v3"
 LANGUAGE = "zh"  # 主要語言設中文，Whisper 會自動處理中英夾雜
 
-# 專業術語 prompt - 告訴 Whisper 這些詞要辨識正確
-# 格式：用逗號分隔，可以加入常用詞彙
+# ── 專業術語清單 ──────────────────────────────────────────────────────────────
+# 在這裡加你常用的中英夾雜術語，辨識 prompt 和 AI 潤稿都會用到。
+# 以後要新增術語，只要改這個 list 就好。
+TERMS = [
+    "zone2", "zone 2", "pace", "DRAM", "call", "put",
+    "API", "component", "refactor", "PR", "commit", "deploy",
+    "backend", "frontend", "database", "server", "client",
+]
+
+# 給 Whisper 的辨識提示（自動帶入術語清單）
 INITIAL_PROMPT = (
     "以下是繁體中文語音，包含中英夾雜的專業術語。"
-    "常見術語：zone2, zone 2, pace, DRAM, dram, call, put, "
-    "API, component, refactor, PR, commit, deploy, "
-    "backend, frontend, database, server, client。"
+    f"常見術語：{', '.join(TERMS)}。"
     "請使用繁體中文輸出，不要使用簡體中文。"
 )
 
-# 快捷鍵設定
+# ── AI 潤稿設定 ───────────────────────────────────────────────────────────────
+# 開啟後，會用 LLM 把 Whisper 的原始稿補上正確標點、修正中英術語。
+# 只補標點+修術語，不改你的用詞、不刪字。
+ENABLE_POLISH = True
+POLISH_MODEL = "llama-3.3-70b-versatile"  # Groq 上免費且快
+
+# ── 快捷鍵設定 ────────────────────────────────────────────────────────────────
 # 按住 Right Option 錄音，放開後送出
-# 可改為 Key.ctrl_r, Key.shift 等
+# 可改為 left_option, right_ctrl
 HOTKEY = "right_option"
 
 # 靜音偵測：超過這個秒數沒有聲音自動停止（0 = 不自動停止）
