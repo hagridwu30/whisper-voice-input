@@ -259,6 +259,12 @@ def stop_recording_and_transcribe():
         hide_status()
         return
 
+    # 錄音太短（< 約0.4秒）通常是誤觸，直接略過
+    if len(audio_frames) < 6:
+        log.info(f"錄音太短（{len(audio_frames)} frames），視為誤觸略過")
+        hide_status()
+        return
+
     show_status("⏳ 辨識中...")
     threading.Thread(target=_transcribe_and_inject, daemon=True).start()
 
@@ -307,7 +313,10 @@ def _transcribe_and_inject():
             hide_status()
             return
 
-        JUNK_PHRASES = ["請使用繁體中文", "不要使用簡體中文", "常見術語", "以下是繁體中文"]
+        JUNK_PHRASES = [
+            "請使用繁體中文", "不要使用簡體中文", "常見術語", "以下是繁體中文",
+            "那我們繼續", "今天會聊到",  # 新版 Whisper prompt 的內容（無聲時會漏出）
+        ]
         if any(phrase in text for phrase in JUNK_PHRASES):
             log.warning("偵測到 junk phrase，略過注入")
             hide_status()
@@ -346,6 +355,9 @@ def _polish_text(text):
         "不可把英文猜測替換成意思不同的詞，只能加標點與修明顯的英文拼寫錯誤。"
     )
     try:
+        extra = {}
+        if "qwen" in config.POLISH_MODEL.lower():
+            extra["reasoning_effort"] = "none"  # 關閉 Qwen 的思考模式，直接輸出
         resp = client.chat.completions.create(
             model=config.POLISH_MODEL,
             messages=[
@@ -353,9 +365,13 @@ def _polish_text(text):
                 {"role": "user", "content": text},
             ],
             temperature=0,
-            max_tokens=1024,
+            max_tokens=2048,
+            **extra,
         )
         polished = resp.choices[0].message.content.strip()
+        # 移除思考模式殘留（保險起見）
+        import re as _re
+        polished = _re.sub(r"<think>.*?</think>", "", polished, flags=_re.S).strip()
         # 安全檢查：潤稿後字數變化太大就退回原文（避免 LLM 亂改）
         if polished and abs(len(polished) - len(text)) <= max(10, len(text) * 0.5):
             polished = converter.convert(polished)  # 確保仍是繁體
