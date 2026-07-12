@@ -231,6 +231,15 @@ def start_recording():
     threading.Thread(target=record_loop, daemon=True).start()
 
 
+def _audio_rms(raw_bytes):
+    """計算 16-bit 音訊的 RMS 音量"""
+    import array, math
+    samples = array.array("h", raw_bytes[: len(raw_bytes) // 2 * 2])
+    if not samples:
+        return 0.0
+    return math.sqrt(sum(s * s for s in samples) / len(samples))
+
+
 def _safe_transcribe():
     """麥克風中斷時安全關閉裝置並送出辨識"""
     global pa, stream
@@ -272,6 +281,14 @@ def stop_recording_and_transcribe():
     # 錄音太短（< 約0.4秒）通常是誤觸，直接略過
     if len(audio_frames) < 6:
         log.info(f"錄音太短（{len(audio_frames)} frames），視為誤觸略過")
+        hide_status()
+        return
+
+    # 靜音檢查：整段音量太低就是沒說話，不送辨識（避免 Whisper 幻覺出「謝謝你」等句子）
+    rms = _audio_rms(b"".join(audio_frames))
+    log.info(f"錄音音量 RMS={rms:.0f}（門檻 {config.SILENCE_RMS_THRESHOLD}）")
+    if rms < config.SILENCE_RMS_THRESHOLD:
+        log.info("音量低於門檻，視為靜音略過")
         hide_status()
         return
 
