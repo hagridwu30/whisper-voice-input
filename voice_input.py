@@ -122,6 +122,14 @@ def _run_on_main(fn):
         )
 
 
+def set_menubar_icon(title):
+    """更新選單列圖示：🎙 正常 / ⚠️ 麥克風斷線"""
+    def _update():
+        if status_item:
+            status_item.button().setTitle_(title)
+    _run_on_main(_update)
+
+
 # ── 錄音 ──────────────────────────────────────────────────────────────────────
 def find_input_device(pa_instance):
     """優先選 USB 麥克風，找不到則用預設輸入裝置"""
@@ -182,6 +190,7 @@ def start_recording():
                 frames_per_buffer=config.CHUNK_SIZE,
             )
             opened = True
+            set_menubar_icon("🎙")  # 麥克風正常，恢復圖示
             break
         except Exception as e:
             log.warning(f"開啟麥克風失敗 (第{attempt+1}次): {e}")
@@ -196,6 +205,7 @@ def start_recording():
     if not opened:
         log.error("無法開啟麥克風，放棄錄音")
         is_recording = False
+        set_menubar_icon("⚠️")  # 選單列顯示警告，直到麥克風恢復
         show_status("❌ 請確認麥克風已連接")
         time.sleep(2)
         hide_status()
