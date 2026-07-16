@@ -19,7 +19,7 @@ LANGUAGE = "zh"  # 主要語言設中文，Whisper 會自動處理中英夾雜
 TERMS = [
     "zone2", "zone 2", "pace", "DRAM", "call", "put",
     "API", "component", "refactor", "PR", "commit", "deploy",
-    "backend", "frontend", "database", "server", "client",
+    "backend", "frontend", "database", "server", "client", "處置股", "claude code", 
 ]
 
 # 給 Whisper 的辨識提示（自動帶入術語清單）
